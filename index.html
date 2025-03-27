@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Northwestern Writing Seminar Analysis</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- React and Related Libraries -->
     <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
@@ -21,14 +22,19 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <style>
-        /* Custom animations for tab switching */
+        /* Base styles */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        /* Tab transitions */
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
         
         .fade-in {
-            animation: fadeIn 0.3s ease-in-out;
+            animation: fadeIn 0.4s ease-in-out;
         }
         
         /* Custom scrollbar */
@@ -54,15 +60,61 @@
         /* Card hover effect */
         .course-card {
             transition: all 0.2s ease-in-out;
+            border-width: 2px;
         }
         
         .course-card:hover {
             transform: translateY(-3px);
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
+        
+        /* Course cards with color variants */
+        .course-card-1 { background-color: #e8f5e9; border-color: #4caf50; }
+        .course-card-2 { background-color: #e3f2fd; border-color: #2196f3; }
+        .course-card-3 { background-color: #fff8e1; border-color: #ffc107; }
+        .course-card-4 { background-color: #f3e5f5; border-color: #9c27b0; }
+        .course-card-5 { background-color: #e0f7fa; border-color: #00bcd4; }
+        .course-card-6 { background-color: #fff3e0; border-color: #ff9800; }
+        .course-card-7 { background-color: #e8eaf6; border-color: #3f51b5; }
+        .course-card-8 { background-color: #ffebee; border-color: #f44336; }
+        .course-card-9 { background-color: #f1f8e9; border-color: #8bc34a; }
+        .course-card-10 { background-color: #fce4ec; border-color: #e91e63; }
+        
+        /* Term selector styling */
+        .term-selector {
+            background-color: #f0fdf4;
+            border-radius: 9999px;
+            padding: 0.5rem 1rem;
+            font-weight: 500;
+            font-size: 0.95rem;
+            color: #166534;
+            border: 1px solid #dcfce7;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+        
+        /* Tab transitions */
+        .tab-content {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        
+        .tab-enter {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        
+        .tab-enter-active {
+            opacity: 1;
+            transform: translateY(0);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        
+        /* Bar chart styling */
+        .custom-bar {
+            margin: 0 0 8px 0;
+        }
     </style>
 </head>
-<body class="bg-gray-50 font-sans">
+<body class="bg-gray-50">
     <div id="root"></div>
 
     <script type="text/babel">
@@ -70,15 +122,22 @@
         // Access Recharts components
         const { 
             BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, 
-            ResponsiveContainer, ScatterChart, Scatter, ZAxis, Cell, LineChart, Line 
+            ResponsiveContainer, Cell
         } = window.Recharts;
+
+        // Color palette for bars and cards
+        const COLORS = [
+            '#4caf50', '#2196f3', '#ffc107', '#9c27b0', 
+            '#00bcd4', '#ff9800', '#3f51b5', '#f44336', 
+            '#8bc34a', '#e91e63', '#607d8b'
+        ];
 
         const App = () => {
             const [data, setData] = useState([]);
             const [loading, setLoading] = useState(true);
             const [currentTab, setCurrentTab] = useState('rankings');
             const [sortField, setSortField] = useState('Mean Overall Rating of Course');
-            const [filterSeminarsOnly, setFilterSeminarsOnly] = useState(false);
+            const [filterSeminarsOnly, setFilterSeminarsOnly] = useState(true); // Default to true
             const [searchTerm, setSearchTerm] = useState('');
             const [currentTerm, setCurrentTerm] = useState('Spring 2025');
             const [availableTerms, setAvailableTerms] = useState(['Spring 2025']);
@@ -87,6 +146,7 @@
                 return savedWishlist ? JSON.parse(savedWishlist) : [];
             });
             const [hoveredCourse, setHoveredCourse] = useState(null);
+            const [tabAnimation, setTabAnimation] = useState(false);
 
             // Metrics to display in bar charts
             const metrics = [
@@ -105,51 +165,20 @@
                 default: (a, b) => b[sortField] - a[sortField]
             };
 
+            // Handle tab switching with animation
+            const handleTabChange = (tab) => {
+                setTabAnimation(true);
+                setTimeout(() => {
+                    setCurrentTab(tab);
+                    setTabAnimation(false);
+                }, 300);
+            };
+
             useEffect(() => {
                 // Save wishlist to localStorage whenever it changes
                 localStorage.setItem('seminarWishlist', JSON.stringify(wishlist));
             }, [wishlist]);
 
-            useEffect(() => {
-                const csvUrl = 'https://raw.githubusercontent.com/poweringimaginations/northwestern-seminars/main/Spring%20Seminars%20Data%20%20Sheet1.csv';
-                
-                const loadData = async () => {
-                    try {
-                        const response = await fetch(csvUrl);
-                        const csvData = await response.text();
-                        
-                        Papa.parse(csvData, {
-                            header: true,
-                            dynamicTyping: true,
-                            skipEmptyLines: true,
-                            complete: (results) => {
-                                // Process the data
-                                const processedData = results.data.map(item => ({
-                                    ...item,
-                                    // Convert TRUE/FALSE strings to actual booleans if needed
-                                    'Prev Was Seminar?': typeof item['Prev Was Seminar?'] === 'string' 
-                                        ? item['Prev Was Seminar?'].toLowerCase() === 'true' 
-                                        : item['Prev Was Seminar?'],
-                                    courseLabel: `${item['Current Taught Course'].substring(0, 30)}${item['Current Taught Course'].length > 30 ? '...' : ''}`,
-                                    fullLabel: `${item['Current Taught Course']} (${item['Instructor Name']})`,
-                                    dataSource: item['Previous Taught Course'] || 'No previous data'
-                                }));
-                                setData(processedData);
-                                setLoading(false);
-                            },
-                            error: (error) => {
-                                console.error('Error parsing CSV:', error);
-                                setLoading(false);
-                            }
-                        });
-                    } catch (error) {
-                        console.error('Error loading data:', error);
-                        setLoading(false);
-                    }
-                };
-
-                loadData();
-            }, []);
             const loadData = async () => {
                 try {
                     const csvUrl = 'https://raw.githubusercontent.com/poweringimaginations/northwestern-seminars/main/Spring%20Seminars%20Data%20%20Sheet1.csv';
@@ -162,15 +191,18 @@
                         skipEmptyLines: true,
                         complete: (results) => {
                             // Process the data
-                            const processedData = results.data.map(item => ({
+                            const processedData = results.data.map((item, index) => ({
                                 ...item,
                                 // Convert TRUE/FALSE strings to actual booleans if needed
                                 'Prev Was Seminar?': typeof item['Prev Was Seminar?'] === 'string' 
                                     ? item['Prev Was Seminar?'].toLowerCase() === 'true' 
                                     : item['Prev Was Seminar?'],
-                                courseLabel: `${item['Current Taught Course'].substring(0, 30)}${item['Current Taught Course'].length > 30 ? '...' : ''}`,
+                                courseLabel: `${item['Current Taught Course'].substring(0, 25)}${item['Current Taught Course'].length > 25 ? '...' : ''}`,
                                 fullLabel: `${item['Current Taught Course']} (${item['Instructor Name']})`,
-                                dataSource: item['Previous Taught Course'] || 'No previous data'
+                                dataSource: item['Previous Taught Course'] || 'No previous data',
+                                // Assign a color based on index
+                                colorIndex: index % COLORS.length,
+                                color: COLORS[index % COLORS.length]
                             }));
                             setData(processedData);
                             setLoading(false);
@@ -185,7 +217,6 @@
                     setLoading(false);
                 }
             };
-
             useEffect(() => {
                 loadData();
             }, [currentTerm]);
@@ -206,10 +237,6 @@
                     : sortFunctions.default
             );
 
-            const getCourseColor = (isSeminar) => {
-                return isSeminar ? '#4f46e5' : '#ec4899';
-            };
-
             const addToWishlist = (course) => {
                 if (!wishlist.some(item => item['Current Taught Course'] === course['Current Taught Course'])) {
                     setWishlist([...wishlist, course]);
@@ -226,8 +253,8 @@
                 return wishlist.some(item => item['Current Taught Course'] === course['Current Taught Course']);
             };
 
-            // Helper component for metric bar charts
-            const MetricBarChart = ({ data, metric, height = 300 }) => {
+            // Helper component for metric bar charts with more spacing
+            const MetricBarChart = ({ data, metric, height = 300, barSize = 20, barGap = 8 }) => {
                 const sortedData = [...data].sort((a, b) => 
                     metric.reverse 
                         ? a[metric.key] - b[metric.key]
@@ -242,7 +269,10 @@
                             <BarChart
                                 data={limitedData}
                                 layout="vertical"
-                                margin={{ top: 5, right: 30, left: 120, bottom: 5 }}
+                                margin={{ top: 5, right: 30, left: 150, bottom: 5 }}
+                                barCategoryGap={barGap}
+                                barSize={barSize}
+                                className="custom-bar"
                             >
                                 <CartesianGrid strokeDasharray="3 3" />
                                 <XAxis 
@@ -252,8 +282,9 @@
                                 <YAxis 
                                     dataKey="courseLabel" 
                                     type="category" 
-                                    width={120} 
-                                    tick={{ fontSize: 12 }}
+                                    width={150} 
+                                    tick={{ fontSize: 13 }}
+                                    tickMargin={5}
                                 />
                                 <Tooltip 
                                     formatter={(value, name) => [value.toFixed(2), metric.label]}
@@ -261,14 +292,15 @@
                                         const course = data.find(c => c.courseLabel === label);
                                         return `${course['Current Taught Course']} - ${course['Instructor Name']}`;
                                     }}
+                                    contentStyle={{ fontFamily: 'Inter, sans-serif' }}
                                 />
                                 <Bar 
                                     dataKey={metric.key} 
-                                    fill="#8884d8"
+                                    className="custom-bar"
                                     name={metric.label}
                                 >
                                     {limitedData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={getCourseColor(entry['Prev Was Seminar?'])} />
+                                        <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
                                     ))}
                                 </Bar>
                             </BarChart>
@@ -295,11 +327,20 @@
                 </div>
             );
 
+            // Term selector styled like the example
+            const TermSelector = () => (
+                <div className="flex justify-center my-4">
+                    <div className="term-selector">
+                        {currentTerm}
+                    </div>
+                </div>
+            );
+
             if (loading) {
                 return (
                     <div className="flex items-center justify-center h-screen">
                         <div className="flex flex-col items-center">
-                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mb-4"></div>
                             <div className="text-xl font-semibold text-gray-700">Loading seminar data...</div>
                         </div>
                     </div>
@@ -308,49 +349,41 @@
             
             return (
                 <div className="min-h-screen bg-gray-50">
-                    <header className="bg-indigo-600 text-white p-4 shadow-md">
-                        <div className="container mx-auto flex justify-between items-center">
-                            <div>
-                                <h1 className="text-3xl font-bold">Northwestern Writing Seminar Analysis</h1>
-                                <p className="mt-1 text-indigo-100">Find the perfect writing seminar based on past course ratings and reviews</p>
-                            </div>
-                            <div className="flex items-center">
-                                <div className="mr-4">
-                                    <label className="block text-sm font-medium text-indigo-100 mb-1">Term:</label>
-                                    <select 
-                                        value={currentTerm} 
-                                        onChange={(e) => setCurrentTerm(e.target.value)}
-                                        className="bg-indigo-700 text-white border border-indigo-500 rounded-md px-3 py-1 text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none"
-                                    >
-                                        {availableTerms.map(term => (
-                                            <option key={term} value={term}>{term}</option>
-                                        ))}
-                                    </select>
+                    <header className="bg-white border-b border-gray-200 py-4 px-4 shadow-sm">
+                        <div className="container mx-auto">
+                            <div className="flex flex-col items-center">
+                                <div className="flex items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mr-2 text-green-600" viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.4 0zM6 18a1 1 0 001-1v-2.065a8.935 8.935 0 00-2-.712V17a1 1 0 001 1z" />
+                                    </svg>
+                                    <h1 className="text-2xl font-bold text-gray-800">Northwestern Writing Seminar Analysis</h1>
                                 </div>
+                                <p className="mt-1 text-gray-600 text-center">Find the perfect writing seminar based on past course ratings and reviews</p>
+                                <TermSelector />
                             </div>
                         </div>
                     </header>
 
                     <nav className="bg-white shadow-sm border-b">
-                        <div className="container mx-auto flex">
+                        <div className="container mx-auto flex justify-center">
                             <button 
-                                className={`px-6 py-4 font-medium transition-colors duration-200 ease-in-out ${currentTab === 'rankings' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-600 hover:text-indigo-500'}`}
-                                onClick={() => setCurrentTab('rankings')}
+                                className={`px-6 py-4 font-medium transition-colors duration-200 ease-in-out ${currentTab === 'rankings' ? 'text-green-600 border-b-2 border-green-500' : 'text-gray-600 hover:text-green-500'}`}
+                                onClick={() => handleTabChange('rankings')}
                             >
                                 Seminar Rankings
                             </button>
                             <button 
-                                className={`px-6 py-4 font-medium transition-colors duration-200 ease-in-out ${currentTab === 'wishlist' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-600 hover:text-indigo-500'}`}
-                                onClick={() => setCurrentTab('wishlist')}
+                                className={`px-6 py-4 font-medium transition-colors duration-200 ease-in-out ${currentTab === 'wishlist' ? 'text-green-600 border-b-2 border-green-500' : 'text-gray-600 hover:text-green-500'}`}
+                                onClick={() => handleTabChange('wishlist')}
                             >
                                 My Wishlist ({wishlist.length})
                             </button>
                         </div>
                     </nav>
 
-                    <div className="container mx-auto py-6 px-4 fade-in">
+                    <div className={`container mx-auto py-6 px-4 ${tabAnimation ? 'tab-enter' : 'tab-content'}`}>
                         {currentTab === 'rankings' && (
-                            <div>
+                            <div className="fade-in">
                                 <DataSourceNote />
                                 
                                 <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
@@ -360,7 +393,7 @@
                                             <select 
                                                 value={sortField} 
                                                 onChange={(e) => setSortField(e.target.value)}
-                                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
                                             >
                                                 {metrics.map(metric => (
                                                     <option key={metric.key} value={metric.key}>
@@ -376,7 +409,7 @@
                                                 value={searchTerm}
                                                 onChange={(e) => setSearchTerm(e.target.value)}
                                                 placeholder="Type to search..."
-                                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
                                             />
                                             <div className="mt-2">
                                                 <input 
@@ -394,29 +427,33 @@
                                     </div>
                                 </div>
 
-                                {/* Featured Chart */}
-                                <div className="bg-white rounded-lg shadow-sm mb-6 p-4">
+                                {/* Featured Chart with more spacing */}
+                                <div className="bg-white rounded-lg shadow-sm mb-6 p-6">
                                     <h2 className="text-xl font-semibold text-gray-800 mb-4">
                                         {sortField === 'Mean Average Hours Spent Per Week' 
                                             ? 'Seminars with Lowest Hours Required'
                                             : `Top Seminars by ${metrics.find(m => m.key === sortField)?.label || sortField}`
                                         }
                                     </h2>
-                                    <div className="h-80">
+                                    <div className="h-96"> {/* Increased height for better spacing */}
                                         <MetricBarChart 
                                             data={sortedData} 
-                                            metric={metrics.find(m => m.key === sortField) || metrics[0]} 
+                                            metric={metrics.find(m => m.key === sortField) || metrics[0]}
+                                            barSize={24}
+                                            barGap={12}
                                         />
                                     </div>
-                                    <div className="flex justify-center mt-4">
-                                        <div className="flex items-center mr-4">
-                                            <div className="w-4 h-4 rounded-full" style={{backgroundColor: getCourseColor(true)}}></div>
-                                            <span className="ml-2 text-sm">Previous Seminar</span>
-                                        </div>
-                                        <div className="flex items-center">
-                                            <div className="w-4 h-4 rounded-full" style={{backgroundColor: getCourseColor(false)}}></div>
-                                            <span className="ml-2 text-sm">Not a Seminar</span>
-                                        </div>
+                                    <div className="flex flex-wrap justify-center mt-6">
+                                        {COLORS.slice(0, Math.min(sortedData.length, 10)).map((color, index) => {
+                                            const course = sortedData[index];
+                                            if (!course) return null;
+                                            return (
+                                                <div key={index} className="flex items-center mr-4 mb-2">
+                                                    <div className="w-4 h-4 rounded-full" style={{backgroundColor: color}}></div>
+                                                    <span className="ml-2 text-sm truncate max-w-xs">{course.courseLabel}</span>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
 
@@ -468,7 +505,7 @@
                                             <tbody className="bg-white divide-y divide-gray-200">
                                                 {sortedData.map((course, index) => (
                                                     <tr key={index} className={index % 2 === 0 ? 'bg-white hover:bg-gray-50' : 'bg-gray-50 hover:bg-gray-100'}>
-                                                        <td className="px-6 py-4 whitespace-normal text-sm font-medium text-gray-900">
+                                                        <td className="px-6 py-4 whitespace-normal text-sm font-medium text-gray-900" style={{borderLeft: `4px solid ${course.color || COLORS[index % COLORS.length]}`}}>
                                                             {course['Current Taught Course']}
                                                         </td>
                                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -487,7 +524,7 @@
                                                             {course['roberta_pos']?.toFixed(2)}
                                                         </td>
                                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                            <span className={course['Prev Was Seminar?'] ? 'text-indigo-600' : 'text-gray-500'}>
+                                                            <span className={course['Prev Was Seminar?'] ? 'text-green-600' : 'text-gray-500'}>
                                                                 {course['Prev Was Seminar?'] ? '✓' : '✗'}
                                                             </span>
                                                         </td>
@@ -498,14 +535,14 @@
                                                             {isInWishlist(course) ? (
                                                                 <button 
                                                                     onClick={() => removeFromWishlist(course)}
-                                                                    className="p-1 rounded bg-indigo-100 text-indigo-700 hover:bg-indigo-200 focus:outline-none transition-colors"
+                                                                    className="p-1 rounded bg-green-100 text-green-700 hover:bg-green-200 focus:outline-none transition-colors"
                                                                 >
                                                                     ❤️
                                                                 </button>
                                                             ) : (
                                                                 <button 
                                                                     onClick={() => addToWishlist(course)}
-                                                                    className="p-1 rounded bg-gray-100 text-gray-500 hover:bg-indigo-100 hover:text-indigo-700 focus:outline-none transition-colors"
+                                                                    className="p-1 rounded bg-gray-100 text-gray-500 hover:bg-green-100 hover:text-green-700 focus:outline-none transition-colors"
                                                                 >
                                                                     ♡
                                                                 </button>
@@ -520,7 +557,7 @@
                             </div>
                         )}
                         {currentTab === 'wishlist' && (
-                            <div>
+                            <div className="fade-in">
                                 <DataSourceNote />
                                 
                                 <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
@@ -534,8 +571,8 @@
                                             <p className="mb-4 text-lg">Your wishlist is empty</p>
                                             <p className="mb-6">Add seminars to your wishlist by clicking the ♡ icon in the seminar listings</p>
                                             <button 
-                                                onClick={() => setCurrentTab('rankings')}
-                                                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+                                                onClick={() => handleTabChange('rankings')}
+                                                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
                                             >
                                                 Browse Seminars
                                             </button>
@@ -546,19 +583,19 @@
                                                 {wishlist.map((course, index) => (
                                                     <div 
                                                         key={index} 
-                                                        className="border rounded-lg p-4 relative hover:shadow-md course-card"
+                                                        className={`course-card course-card-${(index % 10) + 1} rounded-lg p-4 relative hover:shadow-md`}
                                                         onMouseEnter={() => setHoveredCourse(course)}
                                                         onMouseLeave={() => setHoveredCourse(null)}
                                                     >
                                                         <button 
                                                             onClick={() => removeFromWishlist(course)}
-                                                            className="absolute top-2 right-2 p-1 rounded text-indigo-700 hover:bg-indigo-100 focus:outline-none"
+                                                            className="absolute top-2 right-2 p-1 rounded text-gray-700 hover:bg-gray-200 focus:outline-none"
                                                         >
                                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                                                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                                                             </svg>
                                                         </button>
-                                                        <h3 className="font-medium text-lg mb-1 pr-6 text-indigo-900">{course['Current Taught Course']}</h3>
+                                                        <h3 className="font-medium text-lg mb-1 pr-6 text-gray-900">{course['Current Taught Course']}</h3>
                                                         <p className="text-gray-600 mb-2">{course['Instructor Name']}</p>
                                                         <p className="text-xs text-gray-500">Based on: {course['Previous Taught Course'] || 'No previous data'}</p>
                                                         
@@ -592,7 +629,7 @@
                                                             </div>
                                                         )}
                                                         {!hoveredCourse || hoveredCourse['Current Taught Course'] !== course['Current Taught Course'] ? (
-                                                            <div className="mt-2 text-indigo-600 text-sm">Hover for details</div>
+                                                            <div className="mt-2 text-gray-600 text-sm italic">Hover for details</div>
                                                         ) : null}
                                                     </div>
                                                 ))}
@@ -603,8 +640,8 @@
                                             
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                 {metrics.map((metric) => (
-                                                    <div key={metric.key} className="bg-white p-4 rounded-lg shadow-sm">
-                                                        <h4 className="text-lg font-medium mb-2 text-gray-700">
+                                                    <div key={metric.key} className="bg-white p-5 rounded-lg shadow-sm">
+                                                        <h4 className="text-lg font-medium mb-3 text-gray-700">
                                                             {metric.label}
                                                         </h4>
                                                         <div className="h-64">
@@ -612,6 +649,8 @@
                                                                 data={wishlist} 
                                                                 metric={metric}
                                                                 height={250}
+                                                                barSize={20}
+                                                                barGap={10}
                                                             />
                                                         </div>
                                                     </div>
