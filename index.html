@@ -1,37 +1,641 @@
-{hoveredCourse && hoveredCourse['Current Taught Course'] === course['Current Taught Course'] && (
-                                                           <div className="mt-3 pt-3 border-t border-gray-200 border-opacity-50">
-                                                               <div className="grid grid-cols-2 gap-2 text-sm">
-                                                                   <div className="text-gray-600">Course Rating:</div>
-                                                                   <div className="font-medium">{course['Mean Overall Rating of Course']?.toFixed(2)}</div>
-                                                                   
-                                                                   <div className="text-gray-600">Instruction:</div>
-                                                                   <div className="font-medium">{course['Mean Overall Rating of Instruction']?.toFixed(2)}</div>
-                                                                   
-                                                                   <div className="text-gray-600">Hours/Week:</div>
-                                                                   <div className="font-medium">{course['Mean Average Hours Spent Per Week']?.toFixed(2)}</div>
-                                                                   
-                                                                   <div className="text-gray-600">How Much Learned:</div>
-                                                                   <div className="font-medium">{course['Mean How Much Learned']?.toFixed(2)}</div>
-                                                                   
-                                                                   <div className="text-gray-600">Intellectual Challenge:</div>
-                                                                   <div className="font-medium">{course['Mean Effectiveness of Intellectual Challenge']?.toFixed(2)}</div>
-                                                                   
-                                                                   <div className="text-gray-600">Stimulating Interest:</div>
-                                                                   <div className="font-medium">{course['Mean Effectiveness of Stimulating Interest']?.toFixed(2)}</div>
-                                                                   
-                                                                   <div className="text-gray-600">Sentiment Score:</div>
-                                                                   <div className="font-medium">{course['roberta_pos']?.toFixed(2)}</div>
-                                                                   
-                                                                   <div className="text-gray-600">Previously a Seminar:</div>
-                                                                   <div className="font-medium">{course['Prev Was Seminar?'] ? 'Yes' : 'No'}</div>
-                                                               </div>
-                                                           </div>
-                                                       )}
-                                                       {(!hoveredCourse || hoveredCourse['Current Taught Course'] !== course['Current Taught Course']) && (
-                                                        <div className="mt-2 text-gray-600 text-sm">Hover for details</div>
-                                                        )}
-                                                   </div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Northwestern Writing Seminar Analysis</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    
+    <!-- React and Related Libraries -->
+    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    
+    <!-- PapaParse for CSV parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    
+    <!-- Recharts and its dependencies -->
+    <script src="https://unpkg.com/prop-types/prop-types.min.js"></script>
+    <script src="https://unpkg.com/recharts@2.1.9/umd/Recharts.js"></script>
+    
+    <!-- Babel for JSX transformation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <style>
+        /* Custom animations for tab switching */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+        }
+        
+        /* Card hover effect */
+        .course-card {
+            transition: all 0.2s ease-in-out;
+        }
+        
+        .course-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        
+        /* Main content cards */
+        .content-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            transition: all 0.2s ease-in-out;
+        }
+        
+        .content-card:hover {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        
+        /* Wishlist card colors */
+        .wishlist-card-1 {
+            background-color: #e6f7ec;
+            border-left: 4px solid #34d399;
+        }
+        
+        .wishlist-card-2 {
+            background-color: #e7f0fd;
+            border-left: 4px solid #60a5fa;
+        }
+        
+        .wishlist-card-3 {
+            background-color: #fdf5e6;
+            border-left: 4px solid #fdba74;
+        }
+        
+        .wishlist-card-4 {
+            background-color: #f3e8ff;
+            border-left: 4px solid #c084fc;
+        }
+        
+        .wishlist-card-5 {
+            background-color: #e4fafd;
+            border-left: 4px solid #67e8f9;
+        }
+        
+        .wishlist-card-6 {
+            background-color: #fff1f1;
+            border-left: 4px solid #fca5a5;
+        }
+    </style>
+</head>
+<body class="bg-white font-sans">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        // Access Recharts components
+        const { 
+            BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, 
+            ResponsiveContainer, ScatterChart, Scatter, ZAxis, Cell, LineChart, Line 
+        } = window.Recharts;
+
+        const App = () => {
+            const [data, setData] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [currentTab, setCurrentTab] = useState('rankings');
+            const [sortField, setSortField] = useState('Mean Overall Rating of Course');
+            const [filterSeminarsOnly, setFilterSeminarsOnly] = useState(false);
+            const [searchTerm, setSearchTerm] = useState('');
+            const [currentTerm, setCurrentTerm] = useState('Spring 2025');
+            const [availableTerms, setAvailableTerms] = useState(['Spring 2025']);
+            const [wishlist, setWishlist] = useState(() => {
+                const savedWishlist = localStorage.getItem('seminarWishlist');
+                return savedWishlist ? JSON.parse(savedWishlist) : [];
+            });
+            const [hoveredCourse, setHoveredCourse] = useState(null);
+            // Wishlist card colors - lighter pastel colors
+           const wishlistColors = [
+               { bg: '#e6f7ec', border: '#34d399', barColor: '#8bdab2' }, // Green
+               { bg: '#e7f0fd', border: '#60a5fa', barColor: '#93c5fd' }, // Blue
+               { bg: '#fdf5e6', border: '#fdba74', barColor: '#fcd39c' }, // Orange
+               { bg: '#f3e8ff', border: '#c084fc', barColor: '#d8b4fe' }, // Purple
+               { bg: '#e4fafd', border: '#67e8f9', barColor: '#a5f3fc' }, // Cyan
+               { bg: '#fff1f1', border: '#fca5a5', barColor: '#fecaca' }  // Red
+           ];
+
+           // Metrics to display in bar charts
+           const metrics = [
+               { key: 'Mean Overall Rating of Course', label: 'Course Rating' },
+               { key: 'Mean Overall Rating of Instruction', label: 'Instruction Rating' },
+               { key: 'Mean How Much Learned', label: 'How Much Learned' },
+               { key: 'Mean Effectiveness of Intellectual Challenge', label: 'Intellectual Challenge' },
+               { key: 'Mean Effectiveness of Stimulating Interest', label: 'Stimulating Interest' },
+               { key: 'Mean Average Hours Spent Per Week', label: 'Hours Spent Per Week', reverse: true },
+               { key: 'roberta_pos', label: 'Positive Review Sentiment' }
+           ];
+
+           // For sorting hours in reverse (lowest at top)
+           const sortFunctions = {
+               'Mean Average Hours Spent Per Week': (a, b) => a[sortField] - b[sortField],
+               default: (a, b) => b[sortField] - a[sortField]
+           };
+
+           useEffect(() => {
+               // Save wishlist to localStorage whenever it changes
+               localStorage.setItem('seminarWishlist', JSON.stringify(wishlist));
+           }, [wishlist]);
+
+           useEffect(() => {
+               const csvUrl = 'https://raw.githubusercontent.com/poweringimaginations/northwestern-seminars/main/Spring%20Seminars%20Data%20%20Sheet1.csv';
+               
+               const loadData = async () => {
+                   try {
+                       const response = await fetch(csvUrl);
+                       const csvData = await response.text();
+                       
+                       Papa.parse(csvData, {
+                           header: true,
+                           dynamicTyping: true,
+                           skipEmptyLines: true,
+                           complete: (results) => {
+                               // Process the data
+                               const processedData = results.data.map(item => ({
+                                   ...item,
+                                   // Convert TRUE/FALSE strings to actual booleans if needed
+                                   'Prev Was Seminar?': typeof item['Prev Was Seminar?'] === 'string' 
+                                       ? item['Prev Was Seminar?'].toLowerCase() === 'true' 
+                                       : item['Prev Was Seminar?'],
+                                   courseLabel: `${item['Current Taught Course'].substring(0, 30)}${item['Current Taught Course'].length > 30 ? '...' : ''}`,
+                                   fullLabel: `${item['Current Taught Course']} (${item['Instructor Name']})`,
+                                   dataSource: item['Previous Taught Course'] || 'No previous data'
+                               }));
+                               setData(processedData);
+                               setLoading(false);
+                           },
+                           error: (error) => {
+                               console.error('Error parsing CSV:', error);
+                               setLoading(false);
+                           }
+                       });
+                   } catch (error) {
+                       console.error('Error loading data:', error);
+                       setLoading(false);
+                   }
+               };
+               loadData();
+           }, [currentTerm]);
+
+           const filteredData = data
+               .filter(item => 
+                   (filterSeminarsOnly ? item['Prev Was Seminar?'] === true : true) &&
+                   (searchTerm ? 
+                       item['Instructor Name']?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                       item['Current Taught Course']?.toLowerCase().includes(searchTerm.toLowerCase())
+                       : true
+                   )
+               );
+
+           const sortedData = [...filteredData].sort(
+               sortField === 'Mean Average Hours Spent Per Week' 
+                   ? sortFunctions['Mean Average Hours Spent Per Week'] 
+                   : sortFunctions.default
+           );
+
+           const getCourseColor = (isSeminar) => {
+               return isSeminar ? '#4f46e5' : '#ec4899';
+           };
+
+           const getWishlistColorIndex = (course) => {
+               const index = wishlist.findIndex(item => 
+                   item['Current Taught Course'] === course['Current Taught Course']
+               );
+               return index >= 0 ? index % wishlistColors.length : 0;
+           };
+
+           const addToWishlist = (course) => {
+               if (!wishlist.some(item => item['Current Taught Course'] === course['Current Taught Course'])) {
+                   setWishlist([...wishlist, course]);
+               }
+           };
+
+           const removeFromWishlist = (course) => {
+               setWishlist(wishlist.filter(item => 
+                   item['Current Taught Course'] !== course['Current Taught Course']
+               ));
+           };
+
+           const isInWishlist = (course) => {
+               return wishlist.some(item => item['Current Taught Course'] === course['Current Taught Course']);
+           };
+
+           // Helper component for metric bar charts
+           const MetricBarChart = ({ data, metric, height = 300, useWishlistColors = false }) => {
+               const sortedData = [...data].sort((a, b) => 
+                   metric.reverse 
+                       ? a[metric.key] - b[metric.key]
+                       : b[metric.key] - a[metric.key]
+               );
+               
+               const limitedData = sortedData.slice(0, 10);
+               
+               return (
+                   <div className="h-full">
+                       <ResponsiveContainer width="100%" height={height}>
+                           <BarChart
+                               data={limitedData}
+                               layout="vertical"
+                               margin={{ top: 5, right: 30, left: 120, bottom: 5 }}
+                               barGap={8}
+                           >
+                               <CartesianGrid strokeDasharray="3 3" />
+                               <XAxis 
+                                   type="number" 
+                                   domain={metric.key === 'Mean Average Hours Spent Per Week' ? [0, 8] : [0, 7]} 
+                               />
+                               <YAxis 
+                                   dataKey="courseLabel" 
+                                   type="category" 
+                                   width={120} 
+                                   tick={{ fontSize: 12 }}
+                               />
+                               <Tooltip 
+                                   formatter={(value, name) => [value.toFixed(2), metric.label]}
+                                   labelFormatter={(label) => {
+                                       const course = data.find(c => c.courseLabel === label);
+                                       return `${course['Current Taught Course']} - ${course['Instructor Name']}`;
+                                   }}
+                               />
+                               <Bar 
+                                   dataKey={metric.key} 
+                                   fill="#0A99FE"
+                                   name={metric.label}
+                                   barSize={24}
+                               >
+                                   {limitedData.map((entry, index) => (
+                                       <Cell 
+                                           key={`cell-${index}`} 
+                                           fill={useWishlistColors ? 
+                                               wishlistColors[getWishlistColorIndex(entry)].barColor : 
+                                               "#0A99FE"
+                                           } 
+                                       />
+                                   ))}
+                               </Bar>
+                           </BarChart>
+                       </ResponsiveContainer>
+                   </div>
+               );
+           };
+
+           // Helper for data source note
+           const DataSourceNote = () => (
+               <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
+                   <div className="flex">
+                       <div className="flex-shrink-0">
+                           <svg className="h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                               <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                           </svg>
+                       </div>
+                       <div className="ml-3">
+                           <p className="text-sm text-blue-700">
+                               The ratings shown are based on historical data from <strong>Previous Taught Courses</strong>, not necessarily the current course.
+                           </p>
+                       </div>
+                   </div>
+               </div>
+           );
+
+           if (loading) {
+               return (
+                   <div className="flex items-center justify-center h-screen">
+                       <div className="flex flex-col items-center">
+                           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
+                           <div className="text-xl font-semibold text-gray-700">Loading seminar data...</div>
+                       </div>
+                   </div>
+               );
+           }
+           return (
+               <div className="min-h-screen bg-white">
+                   <header className="bg-indigo-600 text-white p-4 shadow-md">
+                       <div className="container mx-auto flex justify-between items-center">
+                           <div>
+                               <h1 className="text-3xl font-bold">Northwestern Writing Seminar Analysis</h1>
+                               <p className="mt-1 text-indigo-100">Find the perfect writing seminar based on past course ratings and reviews</p>
+                           </div>
+                           <div className="flex items-center">
+                               <div className="relative inline-block">
+                                   <label className="block text-sm font-medium text-indigo-100 mb-1">Term:</label>
+                                   <div className="relative">
+                                       <select 
+                                           value={currentTerm} 
+                                           onChange={(e) => setCurrentTerm(e.target.value)}
+                                           className="appearance-none bg-indigo-700 text-white border border-indigo-500 rounded-md pl-3 pr-8 py-2 text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none w-40"
+                                       >
+                                           {availableTerms.map(term => (
+                                               <option key={term} value={term}>{term}</option>
+                                           ))}
+                                       </select>
+                                       <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-indigo-300">
+                                           <svg className="h-4 w-4 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                                               <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                                           </svg>
+                                       </div>
+                                   </div>
+                               </div>
+                           </div>
+                       </div>
+                   </header>
+
+                   <nav className="bg-white shadow-sm border-b">
+                       <div className="container mx-auto flex">
+                           <button 
+                               className={`px-6 py-4 font-medium transition-colors duration-200 ease-in-out ${currentTab === 'rankings' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-600 hover:text-indigo-500'}`}
+                               onClick={() => setCurrentTab('rankings')}
+                           >
+                               Seminar Rankings
+                           </button>
+                           <button 
+                               className={`px-6 py-4 font-medium transition-colors duration-200 ease-in-out ${currentTab === 'wishlist' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-600 hover:text-indigo-500'}`}
+                               onClick={() => setCurrentTab('wishlist')}
+                           >
+                               My Wishlist ({wishlist.length})
+                           </button>
+                       </div>
+                   </nav>
+                   <div className="container mx-auto py-6 px-4 fade-in">
+                       {currentTab === 'rankings' && (
+                           <div>
+                               <DataSourceNote />
+                               
+                               <div className="content-card bg-white p-6 mb-6">
+                                   <div className="flex flex-wrap items-center mb-4">
+                                       <div className="w-full md:w-1/2 mb-4 md:mb-0">
+                                           <label className="block mb-2 text-sm font-medium text-gray-700">Sort by:</label>
+                                           <select 
+                                               value={sortField} 
+                                               onChange={(e) => setSortField(e.target.value)}
+                                               className="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                           >
+                                               {metrics.map(metric => (
+                                                   <option key={metric.key} value={metric.key}>
+                                                       {metric.label}
+                                                   </option>
                                                ))}
+                                           </select>
+                                       </div>
+                                       <div className="w-full md:w-1/2 pl-0 md:pl-4">
+                                           <label className="block mb-2 text-sm font-medium text-gray-700">Search by instructor or course name:</label>
+                                           <input 
+                                               type="text" 
+                                               value={searchTerm}
+                                               onChange={(e) => setSearchTerm(e.target.value)}
+                                               placeholder="Type to search..."
+                                               className="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                           />
+                                           <div className="mt-2">
+                                               <input 
+                                                   type="checkbox" 
+                                                   id="seminarsOnly" 
+                                                   checked={filterSeminarsOnly} 
+                                                   onChange={() => setFilterSeminarsOnly(!filterSeminarsOnly)}
+                                                   className="mr-2"
+                                               />
+                                               <label htmlFor="seminarsOnly" className="text-sm text-gray-700">
+                                                   Show only previous seminars
+                                               </label>
+                                           </div>
+                                       </div>
+                                   </div>
+                               </div>
+
+                               {/* Featured Chart */}
+                               <div className="content-card bg-white mb-6 p-4">
+                                   <h2 className="text-xl font-semibold text-gray-800 mb-4">
+                                       {sortField === 'Mean Average Hours Spent Per Week' 
+                                           ? 'Seminars with Lowest Hours Required'
+                                           : `Top Seminars by ${metrics.find(m => m.key === sortField)?.label || sortField}`
+                                       }
+                                   </h2>
+                                   <div className="h-80">
+                                       <MetricBarChart 
+                                           data={sortedData} 
+                                           metric={metrics.find(m => m.key === sortField) || metrics[0]} 
+                                       />
+                                   </div>
+                                   <div className="flex justify-center mt-4">
+                                       <div className="flex items-center mr-4">
+                                           <div className="w-4 h-4 rounded-full" style={{backgroundColor: getCourseColor(true)}}></div>
+                                           <span className="ml-2 text-sm">Previous Seminar</span>
+                                       </div>
+                                       <div className="flex items-center">
+                                           <div className="w-4 h-4 rounded-full" style={{backgroundColor: getCourseColor(false)}}></div>
+                                           <span className="ml-2 text-sm">Not a Seminar</span>
+                                       </div>
+                                   </div>
+                               </div>
+                               {/* Seminar Rankings Table */}
+                               <div className="content-card bg-white overflow-hidden">
+                                   <div className="p-4 border-b border-gray-200">
+                                       <h2 className="text-xl font-semibold text-gray-800">
+                                           {sortField === 'Mean Average Hours Spent Per Week' 
+                                               ? 'Seminars Ranked by Lowest Hours Required' 
+                                               : sortField === 'roberta_pos'
+                                                   ? 'Seminars Ranked by Positive Review Sentiment'
+                                                   : `Seminars Ranked by ${sortField.replace('Mean ', '')}`
+                                           }
+                                       </h2>
+                                   </div>
+                                   <div className="overflow-x-auto">
+                                       <table className="min-w-full divide-y divide-gray-200">
+                                           <thead className="bg-gray-50">
+                                               <tr>
+                                                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                       Course
+                                                   </th>
+                                                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                       Instructor
+                                                   </th>
+                                                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                       Course Rating
+                                                   </th>
+                                                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                       Instruction Rating
+                                                   </th>
+                                                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                       Hours/Week
+                                                   </th>
+                                                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                       Sentiment
+                                                   </th>
+                                                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                       Is Seminar
+                                                   </th>
+                                                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                       Data Source
+                                                   </th>
+                                                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                       Wishlist
+                                                   </th>
+                                               </tr>
+                                           </thead>
+                                           <tbody className="bg-white divide-y divide-gray-200">
+                                               {sortedData.map((course, index) => (
+                                                   <tr key={index} className={index % 2 === 0 ? 'bg-white hover:bg-gray-50' : 'bg-gray-50 hover:bg-gray-100'}>
+                                                       <td className="px-6 py-4 whitespace-normal text-sm font-medium text-gray-900">
+                                                           {course['Current Taught Course']}
+                                                       </td>
+                                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                           {course['Instructor Name']}
+                                                       </td>
+                                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                           {course['Mean Overall Rating of Course']?.toFixed(2)}
+                                                       </td>
+                                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                           {course['Mean Overall Rating of Instruction']?.toFixed(2)}
+                                                       </td>
+                                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                           {course['Mean Average Hours Spent Per Week']?.toFixed(2)}
+                                                       </td>
+                                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                           {course['roberta_pos']?.toFixed(2)}
+                                                       </td>
+                                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                           <span className={course['Prev Was Seminar?'] ? 'text-indigo-600' : 'text-gray-500'}>
+                                                               {course['Prev Was Seminar?'] ? '✓' : '✗'}
+                                                           </span>
+                                                       </td>
+                                                       <td className="px-6 py-4 whitespace-normal text-xs text-gray-500">
+                                                           {course['Previous Taught Course'] || 'No previous data'}
+                                                       </td>
+                                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                                                           {isInWishlist(course) ? (
+                                                               <button 
+                                                                   onClick={() => removeFromWishlist(course)}
+                                                                   className="p-1 rounded bg-indigo-100 text-indigo-700 hover:bg-indigo-200 focus:outline-none transition-colors"
+                                                               >
+                                                                   ❤️
+                                                               </button>
+                                                           ) : (
+                                                               <button 
+                                                                   onClick={() => addToWishlist(course)}
+                                                                   className="p-1 rounded bg-gray-100 text-gray-500 hover:bg-indigo-100 hover:text-indigo-700 focus:outline-none transition-colors"
+                                                               >
+                                                                   ♡
+                                                               </button>
+                                                           )}
+                                                       </td>
+                                                   </tr>
+                                               ))}
+                                           </tbody>
+                                       </table>
+                                   </div>
+                               </div>
+                           </div>
+                       )}
+                       {currentTab === 'wishlist' && (
+                           <div>
+                               <DataSourceNote />
+                               
+                               <div className="content-card bg-white p-6 mb-6">
+                                   <h2 className="text-xl font-semibold text-gray-800 mb-4">My Wishlist</h2>
+                                   
+                                   {wishlist.length === 0 ? (
+                                       <div className="text-center py-12 text-gray-500">
+                                           <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto mb-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                           </svg>
+                                           <p className="mb-4 text-lg">Your wishlist is empty</p>
+                                           <p className="mb-6">Add seminars to your wishlist by clicking the ♡ icon in the seminar listings</p>
+                                           <button 
+                                               onClick={() => setCurrentTab('rankings')}
+                                               className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+                                           >
+                                               Browse Seminars
+                                           </button>
+                                       </div>
+                                       ) : (
+                                       <div>
+                                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                                               {wishlist.map((course, index) => {
+                                                   const colorIndex = index % wishlistColors.length;
+                                                   const colorSet = wishlistColors[colorIndex];
+                                                   
+                                                   return (
+                                                       <div 
+                                                           key={index} 
+                                                           className="rounded-lg p-4 relative hover:shadow-md course-card"
+                                                           style={{
+                                                               backgroundColor: colorSet.bg,
+                                                               borderLeft: `4px solid ${colorSet.border}`
+                                                           }}
+                                                           onMouseEnter={() => setHoveredCourse(course)}
+                                                           onMouseLeave={() => setHoveredCourse(null)}
+                                                       >
+                                                           <button 
+                                                               onClick={() => removeFromWishlist(course)}
+                                                               className="absolute top-2 right-2 p-1 rounded text-gray-600 hover:bg-white hover:bg-opacity-50 focus:outline-none"
+                                                           >
+                                                               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                                               </svg>
+                                                           </button>
+                                                           <h3 className="font-medium text-lg mb-1 pr-6 text-gray-800">{course['Current Taught Course']}</h3>
+                                                           <p className="text-gray-600 mb-2">{course['Instructor Name']}</p>
+                                                           <p className="text-xs text-gray-500">Based on: {course['Previous Taught Course'] || 'No previous data'}</p>
+                                                           
+                                                           {hoveredCourse && hoveredCourse['Current Taught Course'] === course['Current Taught Course'] && (
+                                                               <div className="mt-3 pt-3 border-t border-gray-200 border-opacity-50">
+                                                                   <div className="grid grid-cols-2 gap-2 text-sm">
+                                                                       <div className="text-gray-600">Course Rating:</div>
+                                                                       <div className="font-medium">{course['Mean Overall Rating of Course']?.toFixed(2)}</div>
+                                                                       
+                                                                       <div className="text-gray-600">Instruction:</div>
+                                                                       <div className="font-medium">{course['Mean Overall Rating of Instruction']?.toFixed(2)}</div>
+                                                                       
+                                                                       <div className="text-gray-600">Hours/Week:</div>
+                                                                       <div className="font-medium">{course['Mean Average Hours Spent Per Week']?.toFixed(2)}</div>
+                                                                       
+                                                                       <div className="text-gray-600">How Much Learned:</div>
+                                                                       <div className="font-medium">{course['Mean How Much Learned']?.toFixed(2)}</div>
+                                                                       
+                                                                       <div className="text-gray-600">Intellectual Challenge:</div>
+                                                                       <div className="font-medium">{course['Mean Effectiveness of Intellectual Challenge']?.toFixed(2)}</div>
+                                                                       
+                                                                       <div className="text-gray-600">Stimulating Interest:</div>
+                                                                       <div className="font-medium">{course['Mean Effectiveness of Stimulating Interest']?.toFixed(2)}</div>
+                                                                       
+                                                                       <div className="text-gray-600">Sentiment Score:</div>
+                                                                       <div className="font-medium">{course['roberta_pos']?.toFixed(2)}</div>
+                                                                       
+                                                                       <div className="text-gray-600">Previously a Seminar:</div>
+                                                                       <div className="font-medium">{course['Prev Was Seminar?'] ? 'Yes' : 'No'}</div>
+                                                                   </div>
+                                                               </div>
+                                                           )}
+                                                           {!hoveredCourse || hoveredCourse['Current Taught Course'] !== course['Current Taught Course'] ? (
+                                                               <div className="mt-2 text-gray-600 text-sm">Hover for details</div>
+                                                           ) : null}
+                                                       </div>
+                                                   );
+                                               })}
                                            </div>
                                            
                                            {/* Wishlist Charts */}
@@ -39,15 +643,16 @@
                                            
                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                {metrics.map((metric) => (
-                                                   <div key={metric.key} className="bg-white p-4 rounded-lg shadow-sm content-card">
+                                                   <div key={metric.key} className="content-card bg-white p-4 rounded-lg">
                                                        <h4 className="text-lg font-medium mb-2 text-gray-700">
                                                            {metric.label}
                                                        </h4>
                                                        <div className="h-64">
-                                                           <WishlistComparisonChart 
+                                                           <MetricBarChart 
                                                                data={wishlist} 
                                                                metric={metric}
                                                                height={250}
+                                                               useWishlistColors={true}
                                                            />
                                                        </div>
                                                    </div>
