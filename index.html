@@ -27,9 +27,9 @@
                                                                </div>
                                                            </div>
                                                        )}
-                                                       {!hoveredCourse || hoveredCourse['Current Taught Course'] !== course['Current Taught Course'] ? (
-                                                           <div className="mt-2 text-gray-600 text-sm">Hover for details</div>
-                                                       ) : null}
+                                                       {(!hoveredCourse || hoveredCourse['Current Taught Course'] !== course['Current Taught Course']) && (
+                                                        <div className="mt-2 text-gray-600 text-sm">Hover for details</div>
+                                                        )}
                                                    </div>
                                                ))}
                                            </div>
